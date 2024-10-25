@@ -1,43 +1,89 @@
 ﻿using Lab2;
 using System;
 using System.IO;
+using System.Linq;
 using UnityEngine;
 
 namespace Lab3
 {
 	public class CodingSequence
 	{
-		private static readonly string XorSequencePath = Path.Combine(Application.dataPath, "Sequence.txt");
+		private static readonly string XorPath = Path.Combine(Application.dataPath, "Sequence.txt");
 		
-		private static readonly string SequenceForCodingPath = Path.Combine(Application.dataPath, "SequenceForEncoding.txt");
-		private static readonly string DecodingSequencePath = Path.Combine(Application.dataPath, "DecodedSequence.txt");
-		private static readonly string CodingSequencePath = Path.Combine(Application.dataPath, "CodingSequence.txt");
-
-		public int LengthSequenceForCoding;
-		public int LengthSequence;
-		public int LengthCodingSequence;
+		private static readonly string ForCodingPath = Path.Combine(Application.dataPath, "ForCoding.txt");
+		private static readonly string DecodingPath = Path.Combine(Application.dataPath, "Decoding.txt");
+		private static readonly string CodingPath = Path.Combine(Application.dataPath, "Coding.txt");
 		
-		private int[] _sequenceForCoding;
-		private int[] _XorSequence;
-		private int[] _decodingSequence;
-		private int[] _codingSequence;
+		public int LengthXor;
+		private int[] _xor;
 
 		public void Coding()
 		{
-			_sequenceForCoding = ReadSequenceFromFile(out LengthSequenceForCoding, SequenceForCodingPath);
-			_XorSequence = ReadSequenceFromFile(out LengthSequence, XorSequencePath);
+			ReadXor();
 			
-			_codingSequence = OperationXOR(_sequenceForCoding, _XorSequence);
-			WriteSequenceToFile(CodingSequencePath, _codingSequence);
+			string coding = ReadFile(ForCodingPath);
+			int[] codingAsciiBinary = StringToAsciiBinary(coding);
+			
+			int[] resultAsciiBinary = OperationXOR(codingAsciiBinary, _xor);
+			string resultCodingString = AsciiBinaryToString(resultAsciiBinary);
+			
+			WriteStringToFile(resultCodingString, CodingPath);
 		}
 
 		public void Decoding()
 		{
-			_codingSequence = ReadSequenceFromFile(out LengthCodingSequence, CodingSequencePath);
-			_XorSequence = ReadSequenceFromFile(out LengthSequence, XorSequencePath);
+			ReadXor();
 			
-			_decodingSequence = OperationXOR(_codingSequence, _XorSequence);
-			WriteSequenceToFile(DecodingSequencePath, _decodingSequence);
+			string decoding = ReadFile(CodingPath);
+			int[] decodingAsciiBinary = StringToAsciiBinary(decoding);
+			
+			int[] resultAsciiBinary = OperationXOR(decodingAsciiBinary, _xor);
+			string resultDecodingString = AsciiBinaryToString(resultAsciiBinary);
+			
+			WriteStringToFile(resultDecodingString, DecodingPath);
+		}
+		
+		// Метод для преобразования строки в массив ASCII
+		public static int[] StringToAsciiBinary(string input)
+		{
+			if (string.IsNullOrEmpty(input))
+			{
+				return Array.Empty<int>();
+			}
+
+			int[] asciiBinary = new int[input.Length];
+
+			for (int i = 0; i < input.Length; i++)
+			{
+				// Преобразуем каждый символ в его ASCII-код и сохраняем в массив
+				asciiBinary[i] = (int)input[i];
+			}
+
+			return asciiBinary;
+		}
+		
+			// Метод для преобразования массива ASCII в строку
+			public static string AsciiBinaryToString(int[] asciiBinary)
+			{
+				if (asciiBinary == null || asciiBinary.Length == 0)
+				{
+					return string.Empty;
+				}
+
+				char[] chars = new char[asciiBinary.Length];
+
+				for (int i = 0; i < asciiBinary.Length; i++)
+				{
+					// Преобразуем каждый ASCII-код обратно в символ
+					chars[i] = (char)asciiBinary[i];
+				}
+
+				return new string(chars);
+			}
+
+		private static string ReadFile(string filePath)
+		{
+			return File.ReadAllText(filePath);
 		}
 		
 		private int[] OperationXOR(int[] sequenceOne, int[] sequenceTwo)
@@ -53,20 +99,25 @@ namespace Lab3
 			return resultSequence;
 		}
 
-		private int[] ReadSequenceFromFile(out int lengthFile, string sequencePath)
+		private void ReadXor()
 		{
-			string[] lines = File.ReadAllLines(sequencePath);
-			lengthFile = lines.Length;
-			int[] sequence = new int[lengthFile];
+			string[] lines = File.ReadAllLines(XorPath);
+			LengthXor = lines.Length;
+			_xor = new int[LengthXor];
 
-			for (int i = 0; i < lengthFile; i++)
+			for (int i = 0; i < LengthXor; i++)
 				if (int.TryParse(lines[i], out int number))
-					sequence[i] = number;
-			
-			return sequence;
+					_xor[i] = number;
 		}
 		
-		private void WriteSequenceToFile(string filePath, int[] sequence) => 
-			File.WriteAllLines(filePath, Array.ConvertAll(sequence, x => x.ToString()));
+		// Метод для записи строки в файл
+		static void WriteStringToFile(string content, string filePath)
+		{
+			// Используем StreamWriter для записи в файл
+			using (StreamWriter writer = new StreamWriter(filePath, append: false))
+			{
+				writer.WriteLine(content); // Записываем строку в файл
+			}
+		}
 	}
 }

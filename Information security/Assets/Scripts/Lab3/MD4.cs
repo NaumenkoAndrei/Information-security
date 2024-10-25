@@ -21,6 +21,78 @@ namespace Lab3
             _state[2] = 0x98badcfe; // C
             _state[3] = 0x10325476; // D
         }
+        
+        // Статический метод для получения хеш-значения строки
+        public static string Hash(byte[] input)
+        {
+            MD4 md4 = new MD4(); // Создание нового экземпляра MD4
+            md4.Update(input); // Обновление состояния с входными данными
+            byte[] hash = md4.FinalizeHash(); // Финализация хеширования
+
+            StringBuilder sb = new StringBuilder(); // Создание StringBuilder для хеш-строки
+            foreach (byte b in hash)
+            {
+                // Преобразование каждого байта в шестнадцатеричную строку
+                sb.Append(b.ToString("x2"));
+            }
+
+            return sb.ToString(); // Возврат итоговой хеш-строки
+        }
+        
+        // Метод для обновления состояния с новыми данным
+        private void Update(byte[] input)
+        {
+            int bufferIndex = (int)(_count % 64); // Текущая позиция в буфере
+            _count += input.Length; // Увеличиваем счетчик на длину входных данных
+
+            int partLength = 64 - bufferIndex; // Оставшееся место в буфере
+            int i = 0; // Индекс для прохода по входным данным
+
+            // Если входные данные превышают оставшееся место в буфере
+            if (input.Length >= partLength)
+            {
+                Array.Copy(input, 0, _buffer, bufferIndex, partLength); // Копируем данные в буфер
+                ProcessBlock(_buffer, 0); // Обрабатываем полный блок
+                
+                // Обрабатываем все оставшиеся полные блоки
+                for (i = partLength; i + 63 < input.Length; i += 64) 
+                {
+                    ProcessBlock(input, i);
+                }
+
+                bufferIndex = 0; // Сброс индекса буфера
+            }
+
+            // Копируем оставшиеся данные во второй половине буфера
+            Array.Copy(input, i, _buffer, bufferIndex, input.Length - i);
+        }
+
+        // Финализация хеширования и возврат результата
+        private byte[] FinalizeHash()
+        {
+            byte[] padding = new byte[64]; // Создание массива для дополнения
+            padding[0] = 0x80; // Добавление бита 1 в начало
+
+            int bufferIndex = (int)(_count % 64); // Индекс текущего положения в буфере
+            int padLength = (bufferIndex < 56) ? (56 - bufferIndex) : (120 - bufferIndex); // Определение длины дополнения
+
+            // Преобразование общего количества бит в массив байтов
+            byte[] lengthBytes = BitConverter.GetBytes(_count * 8);
+
+            // Обновление состояния с дополнением и длиной
+            Update(padding[..padLength]); // Добавляем дополнение
+            Update(lengthBytes); // Добавляем длину
+
+            // Формирование результирующего хеша
+            byte[] hash = new byte[16]; // Создание массива для хеш-значения
+            for (int i = 0; i < 4; i++)
+            {
+                // Копируем 4 байта хеша в результирующий массив
+                Array.Copy(BitConverter.GetBytes(_state[i]), 0, hash, i * 4, 4);
+            }
+
+            return hash; // Возврат итогового хеш-значения
+        }
 
         // Метод для обработки одного блока данных размером 512 бит (64 байта)
         private void ProcessBlock(byte[] block, int offset)
@@ -130,78 +202,6 @@ namespace Lab3
         private static uint RotateLeft(uint x, int n)
         {
             return (x << n) | (x >> (32 - n)); // Сдвигает биты влево и объединяет
-        }
-
-        // Метод для обновления состояния с новыми данным
-        private void Update(byte[] input)
-        {
-            int bufferIndex = (int)(_count % 64); // Текущая позиция в буфере
-            _count += input.Length; // Увеличиваем счетчик на длину входных данных
-
-            int partLength = 64 - bufferIndex; // Оставшееся место в буфере
-            int i = 0; // Индекс для прохода по входным данным
-
-            // Если входные данные превышают оставшееся место в буфере
-            if (input.Length >= partLength)
-            {
-                Array.Copy(input, 0, _buffer, bufferIndex, partLength); // Копируем данные в буфер
-                ProcessBlock(_buffer, 0); // Обрабатываем полный блок
-                
-                // Обрабатываем все оставшиеся полные блоки
-                for (i = partLength; i + 63 < input.Length; i += 64) 
-                {
-                    ProcessBlock(input, i);
-                }
-
-                bufferIndex = 0; // Сброс индекса буфера
-            }
-
-            // Копируем оставшиеся данные во второй половине буфера
-            Array.Copy(input, i, _buffer, bufferIndex, input.Length - i);
-        }
-
-        // Финализация хеширования и возврат результата
-        private byte[] FinalizeHash()
-        {
-            byte[] padding = new byte[64]; // Создание массива для дополнения
-            padding[0] = 0x80; // Добавление бита 1 в начало
-
-            int bufferIndex = (int)(_count % 64); // Индекс текущего положения в буфере
-            int padLength = (bufferIndex < 56) ? (56 - bufferIndex) : (120 - bufferIndex); // Определение длины дополнения
-
-            // Преобразование общего количества бит в массив байтов
-            byte[] lengthBytes = BitConverter.GetBytes(_count * 8);
-
-            // Обновление состояния с дополнением и длиной
-            Update(padding[..padLength]); // Добавляем дополнение
-            Update(lengthBytes); // Добавляем длину
-
-            // Формирование результирующего хеша
-            byte[] hash = new byte[16]; // Создание массива для хеш-значения
-            for (int i = 0; i < 4; i++)
-            {
-                // Копируем 4 байта хеша в результирующий массив
-                Array.Copy(BitConverter.GetBytes(_state[i]), 0, hash, i * 4, 4);
-            }
-
-            return hash; // Возврат итогового хеш-значения
-        }
-
-        // Статический метод для получения хеш-значения строки
-        public static string Hash(byte[] input)
-        {
-            MD4 md4 = new MD4(); // Создание нового экземпляра MD4
-            md4.Update(input); // Обновление состояния с входными данными
-            byte[] hash = md4.FinalizeHash(); // Финализация хеширования
-
-            StringBuilder sb = new StringBuilder(); // Создание StringBuilder для хеш-строки
-            foreach (byte b in hash)
-            {
-                // Преобразование каждого байта в шестнадцатеричную строку
-                sb.Append(b.ToString("x2"));
-            }
-
-            return sb.ToString(); // Возврат итоговой хеш-строки
         }
     }
 }
